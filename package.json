@@ -1,8 +1,8 @@
 {
-  "name": "dahch-proxy-server",
+  "name": "proxy",
   "version": "1.0.0",
   "description": "سيرفر البروكسي البسيط لدحش - يعيد توجيه الطلبات عبر تويتر",
-  "main": "final-proxy-server.js",
+  "main": "server.js",
   "scripts": {
     "start": "node final-proxy-server.js",
     "dev": "nodemon final-proxy-server.js",
