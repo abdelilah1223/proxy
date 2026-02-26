@@ -1,0 +1,38 @@
+{
+  "name": "dahch-proxy-server",
+  "version": "1.0.0",
+  "description": "سيرفر البروكسي البسيط لدحش - يعيد توجيه الطلبات عبر تويتر",
+  "main": "final-proxy-server.js",
+  "scripts": {
+    "start": "node final-proxy-server.js",
+    "dev": "nodemon final-proxy-server.js",
+    "pm2": "pm2 start final-proxy-server.js --name dahch-proxy",
+    "pm2-stop": "pm2 stop dahch-proxy",
+    "pm2-restart": "pm2 restart dahch-proxy",
+    "pm2-logs": "pm2 logs dahch-proxy",
+    "pm2-monit": "pm2 monit"
+  },
+  "keywords": [
+    "proxy",
+    "http-proxy",
+    "twitter",
+    "dahch",
+    "forward-proxy"
+  ],
+  "author": "دحش",
+  "license": "MIT",
+  "engines": {
+    "node": ">=14.0.0",
+    "npm": ">=6.0.0"
+  },
+  "dependencies": {
+    "http": "^0.0.1-security",
+    "https": "^1.0.0",
+    "url": "^0.11.0"
+  },
+  "homepage": "https://abdelilah.wuaze.com",
+  "proxy": {
+    "port": 8080,
+    "path": "/proxy-nodejs:8080"
+  }
+}
