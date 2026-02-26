@@ -4,7 +4,7 @@
   "description": "Xray VLESS server on Railway",
   "main": "server.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node server.js"
   },
   "dependencies": {
     "express": "^4.18.2"
