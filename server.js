@@ -1,154 +1,99 @@
-// final-proxy-server.js
-const http = require('http');
-const https = require('https');
-const url = require('url');
+const { exec } = require('child_process');
+const fs = require('fs');
+const path = require('path');
+const express = require('express');
 
-const PORT = 8080;
-const PROXY_PATH = '/proxy-nodejs:8080';
+const app = express();
+const PORT = process.env.PORT || 8080;
 
-const server = http.createServer((req, res) => {
-    // إضافة CORS للسماح لكل المواقع
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', '*');
-    
-    // معالجة طلبات OPTIONS
-    if (req.method === 'OPTIONS') {
-        res.writeHead(204);
-        res.end();
-        return;
-    }
+// تحميل Xray إذا لم يكن موجوداً
+const XRAY_VERSION = '25.1.30';
+const XRAY_URL = `https://github.com/XTLS/Xray-core/releases/download/v${XRAY_VERSION}/Xray-linux-64.zip`;
 
-    try {
-        // استخراج URL الهدف
-        const query = url.parse(req.url, true).query;
-        const targetUrl = query.url;
-
-        // إذا كان طلب الصفحة الرئيسية
-        if (req.url === '/' || req.url === PROXY_PATH) {
-            res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-            res.end(`
-                <!DOCTYPE html>
-                <html dir="rtl">
-                <head>
-                    <title>🚀 بروكسي دحش النهائي</title>
-                    <style>
-                        body { font-family: Arial; max-width: 800px; margin: 50px auto; padding: 20px; background: #f0f2f5; }
-                        .card { background: white; border-radius: 15px; padding: 30px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-                        h1 { color: #1da1f2; margin-top: 0; }
-                        .url-box { background: #f8f9fa; padding: 15px; border-radius: 8px; direction: ltr; font-family: monospace; }
-                        .success { color: green; font-weight: bold; }
-                    </style>
-                </head>
-                <body>
-                    <div class="card">
-                        <h1>✅ بروكسي دحش شغال 100%</h1>
-                        <p class="success">السيرفر يعمل بنجاح على المنفذ ${PORT}</p>
-                        
-                        <h3>🔗 طريقة الاستخدام:</h3>
-                        <div class="url-box">
-                            https://abdelilah.wuaze.com${PROXY_PATH}/?url=https://الموقع-المطلوب.com
-                        </div>
-                        
-                        <h3>📊 معلومات الاتصال:</h3>
-                        <ul>
-                            <li><strong>الوقت:</strong> ${new Date().toLocaleString('ar-EG')}</li>
-                            <li><strong>IP:</strong> ${req.socket.remoteAddress}</li>
-                            <li><strong>الوكيل:</strong> تويتر ← سيرفر دحش ← الموقع</li>
-                        </ul>
-                        
-                        <h3>🌐 تجربة سريعة:</h3>
-                        <ul>
-                            <li><a href="${PROXY_PATH}/?url=https://youtube.com" target="_blank">يوتيوب</a></li>
-                            <li><a href="${PROXY_PATH}/?url=https://google.com" target="_blank">قوقل</a></li>
-                            <li><a href="${PROXY_PATH}/?url=https://github.com" target="_blank">جيت هاب</a></li>
-                        </ul>
-                    </div>
-                </body>
-                </html>
-            `);
-            return;
-        }
-
-        // التحقق من وجود URL هدف
-        if (!targetUrl) {
-            res.writeHead(400);
-            res.end('❌ يجب تحديد URL المطلوب ( ?url=https://example.com )');
-            return;
-        }
-
-        console.log(`\n🌍 ${new Date().toISOString()} - طلب: ${targetUrl}`);
-
-        // تحليل URL الهدف
-        const target = new URL(targetUrl);
+async function setupXray() {
+    if (!fs.existsSync('./xray')) {
+        console.log('📥 تحميل Xray...');
         
-        // خيارات الطلب
-        const options = {
-            hostname: target.hostname,
-            port: target.port || (target.protocol === 'https:' ? 443 : 80),
-            path: target.pathname + target.search,
-            method: req.method,
-            headers: {
-                'host': target.hostname,
-                'user-agent': req.headers['user-agent'] || 'Mozilla/5.0',
-                'accept': req.headers['accept'] || '*/*',
-                'accept-language': req.headers['accept-language'] || 'ar,en-US;q=0.9',
-                'referer': targetUrl,
-                'x-forwarded-for': req.socket.remoteAddress
-            }
-        };
-
-        // اختيار البروتوكول
-        const client = target.protocol === 'https:' ? https : http;
-
-        // إنشاء الطلب
-        const proxyReq = client.request(options, (proxyRes) => {
-            // تجهيز الرؤوس
-            const headers = {
-                ...proxyRes.headers,
-                'access-control-allow-origin': '*',
-                'access-control-allow-methods': 'GET, POST, OPTIONS',
-                'access-control-allow-headers': '*'
-            };
-
-            res.writeHead(proxyRes.statusCode, headers);
-            proxyRes.pipe(res);
-        });
-
-        proxyReq.on('error', (err) => {
-            console.error('❌ خطأ:', err.message);
-            res.writeHead(502);
-            res.end(`خطأ في الاتصال: ${err.message}`);
-        });
-
-        proxyReq.setTimeout(30000, () => {
-            proxyReq.destroy();
-            res.writeHead(504);
-            res.end('انتهت مهلة الاتصال');
-        });
-
-        // إرسال البيانات
-        req.pipe(proxyReq);
-
-    } catch (err) {
-        console.error('❌ خطأ عام:', err);
-        res.writeHead(500);
-        res.end(`خطأ داخلي: ${err.message}`);
+        // تحميل الملف
+        const response = await fetch(XRAY_URL);
+        const buffer = await response.arrayBuffer();
+        fs.writeFileSync('./xray.zip', Buffer.from(buffer));
+        
+        // فك الضغط
+        const AdmZip = require('adm-zip');
+        const zip = new AdmZip('./xray.zip');
+        zip.extractAllTo('./', true);
+        
+        // جعل الملف قابل للتنفيذ
+        fs.chmodSync('./xray', '755');
+        
+        // تنظيف
+        fs.unlinkSync('./xray.zip');
+        
+        console.log('✅ تم تحميل Xray بنجاح');
     }
+}
+
+// إنشاء صفحة رئيسية بسيطة
+app.get('/', (req, res) => {
+    res.send(`
+        <!DOCTYPE html>
+        <html dir="rtl">
+        <head>
+            <title>🚀 خادم VLESS على Railway</title>
+            <style>
+                body { font-family: Arial; max-width: 800px; margin: 50px auto; padding: 20px; }
+                pre { background: #f4f4f4; padding: 10px; border-radius: 5px; }
+            </style>
+        </head>
+        <body>
+            <h1>✅ خادم VLESS شغال بنجاح!</h1>
+            <p>هذا الخادم يستقبل اتصالات VLESS عبر WebSocket.</p>
+            
+            <h2>📝 معلومات الاتصال:</h2>
+            <pre>
+عنوان: proxy-production-43c3.up.railway.app
+منفذ: 443
+UUID: f5c215f6-2c65-4d09-bd53-919bcef1b1b9
+بروتوكول: vless
+نقل: ws
+أمان: none
+مسار: /
+            </pre>
+            
+            <h2>🔗 رابط vless للاستيراد المباشر:</h2>
+            <pre style="direction: ltr;">
+vless://f5c215f6-2c65-4d09-bd53-919bcef1b1b9@proxy-production-43c3.up.railway.app:443?encryption=none&type=ws&path=%2F&host=proxy-production-43c3.up.railway.app#Railway-VLESS
+            </pre>
+            
+            <p>انسخ الرابط أعلاه واستخدمه في v2rayNG أو أي عميل VLESS.</p>
+        </body>
+        </html>
+    `);
 });
 
-server.listen(PORT, '0.0.0.0', () => {
-    console.log(`
-╔══════════════════════════════════════════════════════════╗
-║     ✅ سيرفر دحش النهائي شغال يا حبيب                     ║
-╠══════════════════════════════════════════════════════════╣
-║  📡 المنفذ: ${PORT}                                               ║
-║  🌐 الرابط: https://abdelilah.wuaze.com${PROXY_PATH}            ║
-║                                                              ║
-║  🔗 مثال مباشر:                                              ║
-║  https://abdelilah.wuaze.com${PROXY_PATH}/?url=https://youtube.com ║
-║                                                              ║
-║  🎯 المسار: تويتر ← سيرفر دحش ← الموقع                        ║
-╚══════════════════════════════════════════════════════════╝
-    `);
+// تشغيل Xray في الخلفية
+app.listen(PORT, '0.0.0.0', async () => {
+    console.log(`🌐 خادم الويب يعمل على المنفذ ${PORT}`);
+    
+    await setupXray();
+    
+    console.log('🚀 تشغيل Xray...');
+    
+    // تشغيل Xray مع ملف config.json
+    const xray = exec('./xray -config config.json');
+    
+    xray.stdout.on('data', (data) => {
+        console.log(`Xray: ${data}`);
+    });
+    
+    xray.stderr.on('data', (data) => {
+        console.error(`Xray Error: ${data}`);
+    });
+    
+    xray.on('close', (code) => {
+        console.log(`Xray exited with code ${code}`);
+    });
+    
+    console.log('✅ خادم VLESS جاهز للاستقبال!');
 });
